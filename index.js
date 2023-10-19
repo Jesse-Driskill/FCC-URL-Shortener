@@ -6,6 +6,7 @@ const directory = {currentIndex: 0};
 const directory2 = {};
 let bodyParser = require('body-parser');
 const dns = require('dns');
+const u = require('url');
 app.use(bodyParser.urlencoded({extended: false}));
 
 // Basic Configuration
@@ -24,26 +25,33 @@ app.get('/', function(req, res) {
 // Your first API endpoint
 app.get('/api/hello', function(req, res) {
   res.json({ greeting: 'hello API' });
+
+
 });
 
 app.post('/api/shorturl', (req, res) => {
   let url = req.body.url;
 
-  dns.lookup(host, (err, address, family) => {
-    if (err) {
-      res.json({error: 'invalid url'});
-    } else {
+  let parsedUrl = u.parse(url);
+  let hostname = parsedUrl.hostname;
+
+  if ((parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') && hostname) {
+    dns.lookup(hostname, (err, address) => {
+      if (err) {
+        res.json({error: 'invalid url'});
+      } else {
         if (directory[url] === undefined) {
           directory[url] = { index: directory.currentIndex }
           directory2[directory.currentIndex] = url;
           directory.currentIndex += 1;
+        }
+
+        res.json({original_url: `${req.body.url}`, short_url: directory[url].index});
       }
-
-      res.json({url: `${req.body.url}`, short_url: `${directory[url].index}`});
-    }
-  })
-
-  
+    })
+  } else {
+    res.json({error: 'invalid url'});
+  }
 });
 
 app.get('/api/shorturl/:shorturl', (req, res) => {
